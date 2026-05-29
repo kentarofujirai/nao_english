@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabaseClient'
-import StartScreen from './components/StartScreen'
-import PreviewScreen from './components/PreviewScreen'
-import QuizScreen from './components/QuizScreen'
-import ResultScreen from './components/ResultScreen'
+import { useStudyRecords } from './hooks/useStudyRecords'
+import StartScreen    from './components/StartScreen'
+import PreviewScreen  from './components/PreviewScreen'
+import QuizScreen     from './components/QuizScreen'
+import ResultScreen   from './components/ResultScreen'
+import CalendarScreen from './components/CalendarScreen'
 
 const QUIZ_SIZE = 10
 
@@ -17,12 +19,15 @@ function shuffle(array) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('start')
-  const [mode, setMode] = useState('jp-to-en')
-  const [quizResult, setQuizResult] = useState(null)
-  const [questions, setQuestions] = useState([])
-  const [loadingQuestions, setLoadingQuestions] = useState(false)
-  const [fetchError, setFetchError] = useState(null)
+  const [screen,          setScreen]          = useState('start')
+  const [mode,            setMode]            = useState('jp-to-en')
+  const [quizResult,      setQuizResult]      = useState(null)
+  const [questions,       setQuestions]       = useState([])
+  const [loadingQuestions,setLoadingQuestions]= useState(false)
+  const [fetchError,      setFetchError]      = useState(null)
+  const [calendarFromQuiz,setCalendarFromQuiz]= useState(false)
+
+  const { saveRecord } = useStudyRecords()
 
   async function handleStart(selectedMode) {
     setMode(selectedMode)
@@ -45,8 +50,14 @@ export default function App() {
   }
 
   function handleFinish(result) {
+    saveRecord(result.score, result.totalQuestions)
     setQuizResult(result)
     setScreen('result')
+  }
+
+  function handleShowCalendar(fromQuiz = false) {
+    setCalendarFromQuiz(fromQuiz)
+    setScreen('calendar')
   }
 
   function handleRestart() {
@@ -76,10 +87,39 @@ export default function App() {
 
   return (
     <div className="app">
-      {screen === 'start'   && <StartScreen onStart={handleStart} />}
-      {screen === 'preview' && <PreviewScreen questions={questions} mode={mode} onStart={() => setScreen('quiz')} />}
-      {screen === 'quiz'    && <QuizScreen mode={mode} questions={questions} onFinish={handleFinish} />}
-      {screen === 'result'  && <ResultScreen result={quizResult} onRestart={handleRestart} />}
+      {screen === 'start' && (
+        <StartScreen
+          onStart={handleStart}
+          onShowCalendar={() => handleShowCalendar(false)}
+        />
+      )}
+      {screen === 'preview' && (
+        <PreviewScreen
+          questions={questions}
+          mode={mode}
+          onStart={() => setScreen('quiz')}
+        />
+      )}
+      {screen === 'quiz' && (
+        <QuizScreen
+          mode={mode}
+          questions={questions}
+          onFinish={handleFinish}
+        />
+      )}
+      {screen === 'result' && (
+        <ResultScreen
+          result={quizResult}
+          onRestart={handleRestart}
+          onShowCalendar={() => handleShowCalendar(true)}
+        />
+      )}
+      {screen === 'calendar' && (
+        <CalendarScreen
+          onBack={() => setScreen('start')}
+          justStudied={calendarFromQuiz}
+        />
+      )}
     </div>
   )
 }
